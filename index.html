@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIFO Inventory Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📦</text></svg>">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <span class="nav-icon">📦</span>
+                <span class="nav-title">FIFO Inventory Tracker</span>
+            </div>
+            <div class="nav-links">
+                <button class="nav-link active" data-page="home">Home</button>
+                <button class="nav-link" data-page="inventory">Inventory</button>
+                <button class="nav-link" data-page="reports">Reports</button>
+                <button class="nav-link" data-page="settings">Settings</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Home Page -->
+        <div id="home-page" class="page active">
+            <div class="page-header">
+                <h1>📦 FIFO Inventory Tracker Dashboard</h1>
+            </div>
+
+            <!-- Key Metrics -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Total Items</div>
+                    <div class="metric-value" id="total-items">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Total Quantity</div>
+                    <div class="metric-value" id="total-quantity">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Total Value</div>
+                    <div class="metric-value" id="total-value">$0.00</div>
+                </div>
+                <div class="metric-card metric-warning">
+                    <div class="metric-label">Potential Loss</div>
+                    <div class="metric-value" id="potential-loss">$0.00</div>
+                </div>
+            </div>
+
+            <!-- Status Overview and Alerts -->
+            <div class="dashboard-grid">
+                <div class="card">
+                    <h2>📊 Inventory Status</h2>
+                    <canvas id="status-chart"></canvas>
+                </div>
+                <div class="card">
+                    <h2>⚠️ Priority Alerts</h2>
+                    <div id="alerts-container" class="alerts-list"></div>
+                </div>
+            </div>
+
+            <!-- Current Inventory Table -->
+            <div class="card">
+                <h2>🛒 Current Inventory with Live Pricing</h2>
+                <div class="table-container">
+                    <table id="home-inventory-table" class="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>Product Name</th>
+                                <th>Batch Number</th>
+                                <th>Quantity</th>
+                                <th>Days Until Expiry</th>
+                                <th>Status</th>
+                                <th>Original Price</th>
+                                <th>Discount %</th>
+                                <th>Discounted Price</th>
+                                <th>Total Value</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="summary-cards">
+                    <div class="summary-card expired">
+                        <strong>Expired Items:</strong> <span id="summary-expired">0</span>
+                    </div>
+                    <div class="summary-card warning">
+                        <strong>Items Needing Discount:</strong> <span id="summary-discount">0</span>
+                    </div>
+                    <div class="summary-card fresh">
+                        <strong>Fresh Items:</strong> <span id="summary-fresh">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory Page -->
+        <div id="inventory-page" class="page">
+            <div class="page-header">
+                <h1>📝 Inventory Management</h1>
+            </div>
+
+            <!-- Add New Item Form -->
+            <div class="card">
+                <h2>➕ Add New Inventory Item</h2>
+                <form id="inventory-form" class="inventory-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="product-name">Product Name*</label>
+                            <input type="text" id="product-name" placeholder="e.g., Milk" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="product-id">Product ID*</label>
+                            <input type="text" id="product-id" placeholder="e.g., PRD-001" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="price">Unit Price ($)*</label>
+                            <input type="number" id="price" step="0.01" min="0.01" value="1.00" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="batch-number">Batch Number*</label>
+                            <input type="text" id="batch-number" placeholder="e.g., BATCH-2024-001" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="quantity">Quantity*</label>
+                            <input type="number" id="quantity" min="1" value="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="shelf-life">Shelf Life (days)</label>
+                            <input type="number" id="shelf-life" min="1" value="7">
+                        </div>
+                        <div class="form-group">
+                            <label for="expiry-date">Expiry Date*</label>
+                            <input type="date" id="expiry-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="category">Category</label>
+                            <select id="category">
+                                <option>Dairy</option>
+                                <option>Produce</option>
+                                <option>Meat</option>
+                                <option>Bakery</option>
+                                <option>Beverages</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="location">Storage Location</label>
+                            <input type="text" id="location" placeholder="e.g., Refrigerator A1">
+                        </div>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="notes">Notes (Optional)</label>
+                        <textarea id="notes" rows="3" placeholder="Additional information about this item..."></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">➕ Add Item</button>
+                        <button type="reset" class="btn btn-secondary">🔄 Clear</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Current Inventory -->
+            <div class="card">
+                <h2>📦 Current Inventory</h2>
+                <div class="filters-grid">
+                    <div class="form-group">
+                        <input type="text" id="search-inventory" placeholder="🔍 Search by name, ID, or batch...">
+                    </div>
+                    <div class="form-group">
+                        <select id="category-filter" multiple>
+                            <option value="">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <select id="status-filter" multiple>
+                            <option value="">All Statuses</option>
+                            <option value="Fresh">Fresh</option>
+                            <option value="Moderate">Moderate</option>
+                            <option value="Warning">Warning</option>
+                            <option value="Critical">Critical</option>
+                            <option value="Expired">Expired</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="inventory-list" class="inventory-list"></div>
+                <div class="form-actions">
+                    <button id="export-csv" class="btn btn-secondary">📥 Export to CSV</button>
+                    <button id="clear-all" class="btn btn-danger">🗑️ Clear All</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Page -->
+        <div id="reports-page" class="page">
+            <div class="page-header">
+                <h1>📊 Inventory Analytics & Reports</h1>
+            </div>
+
+            <!-- Financial Overview -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Total Inventory Value</div>
+                    <div class="metric-value" id="report-total-value">$0.00</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Value After Discounts</div>
+                    <div class="metric-value" id="report-discounted-value">$0.00</div>
+                </div>
+                <div class="metric-card metric-warning">
+                    <div class="metric-label">Total Discount Impact</div>
+                    <div class="metric-value" id="report-discount-impact">$0.00</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Average Discount</div>
+                    <div class="metric-value" id="report-avg-discount">0%</div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="dashboard-grid">
+                <div class="card">
+                    <h2>📊 Items by Status</h2>
+                    <canvas id="status-report-chart"></canvas>
+                </div>
+                <div class="card">
+                    <h2>⏰ Expiry Timeline</h2>
+                    <canvas id="expiry-timeline-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Detailed Report -->
+            <div class="card">
+                <h2>📋 Detailed Inventory Report</h2>
+                <div class="filters-grid">
+                    <div class="form-group">
+                        <label for="sort-by">Sort by</label>
+                        <select id="sort-by">
+                            <option value="daysUntilExpiry">Days Until Expiry</option>
+                            <option value="discount">Discount %</option>
+                            <option value="status">Status</option>
+                            <option value="productName">Product Name</option>
+                            <option value="potentialLoss">Potential Loss</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="sort-order">Order</label>
+                        <select id="sort-order">
+                            <option value="asc">Ascending</option>
+                            <option value="desc">Descending</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="report-table" class="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>Product Name</th>
+                                <th>Product ID</th>
+                                <th>Batch Number</th>
+                                <th>Category</th>
+                                <th>Quantity</th>
+                                <th>Expiry Date</th>
+                                <th>Days Until Expiry</th>
+                                <th>Status</th>
+                                <th>Discount %</th>
+                                <th>Price</th>
+                                <th>Original Total Value</th>
+                                <th>Discounted Total Value</th>
+                                <th>Potential Loss</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Critical Items -->
+            <div class="card">
+                <h2>🚨 Critical Action Items</h2>
+                <div id="critical-items-list"></div>
+            </div>
+
+            <!-- Export Options -->
+            <div class="form-actions">
+                <button id="export-full-report" class="btn btn-primary">📄 Full Report (CSV)</button>
+                <button id="export-critical" class="btn btn-danger">🚨 Critical Items (CSV)</button>
+                <button id="export-summary" class="btn btn-secondary">📊 Summary (CSV)</button>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="settings-page" class="page">
+            <div class="page-header">
+                <h1>⚙️ System Settings</h1>
+            </div>
+
+            <div class="card">
+                <h2>🎯 Discount Configuration</h2>
+                <div class="settings-grid">
+                    <div class="settings-section">
+                        <h3>Expiry Thresholds (Days)</h3>
+                        <div class="form-group">
+                            <label for="critical-days">Critical Threshold</label>
+                            <input type="number" id="critical-days" min="1" max="7" value="3">
+                            <small>Items expiring within this many days get the highest discount</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="warning-days">Warning Threshold</label>
+                            <input type="number" id="warning-days" min="4" max="14" value="7">
+                            <small>Items expiring within this many days get a moderate discount</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="moderate-days">Moderate Threshold</label>
+                            <input type="number" id="moderate-days" min="8" max="30" value="14">
+                            <small>Items expiring within this many days get a small discount</small>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h3>Discount Percentages</h3>
+                        <div class="form-group">
+                            <label for="discount-critical">Critical Discount (%)</label>
+                            <input type="range" id="discount-critical" min="0" max="100" value="50">
+                            <span id="discount-critical-value">50%</span>
+                        </div>
+                        <div class="form-group">
+                            <label for="discount-warning">Warning Discount (%)</label>
+                            <input type="range" id="discount-warning" min="0" max="100" value="30">
+                            <span id="discount-warning-value">30%</span>
+                        </div>
+                        <div class="form-group">
+                            <label for="discount-moderate">Moderate Discount (%)</label>
+                            <input type="range" id="discount-moderate" min="0" max="100" value="15">
+                            <span id="discount-moderate-value">15%</span>
+                        </div>
+                        <div class="form-group">
+                            <label for="max-discount">Max Discount for Expired Items (%)</label>
+                            <input type="range" id="max-discount" min="0" max="100" value="50">
+                            <span id="max-discount-value">50%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button id="save-settings" class="btn btn-primary">💾 Save Settings</button>
+                    <button id="reset-settings" class="btn btn-secondary">🔄 Reset to Defaults</button>
+                </div>
+            </div>
+
+            <!-- Data Management -->
+            <div class="card">
+                <h2>💾 Data Management</h2>
+                <div class="settings-grid">
+                    <div class="settings-section">
+                        <h3>Export Data</h3>
+                        <button id="export-all-data" class="btn btn-primary full-width">📦 Export All Data (JSON)</button>
+                    </div>
+                    <div class="settings-section">
+                        <h3>Import Data</h3>
+                        <input type="file" id="import-file" accept=".json" style="display: none;">
+                        <button id="import-data-btn" class="btn btn-primary full-width">📥 Import Data</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="card danger-zone">
+                <h2>⚠️ Danger Zone</h2>
+                <p><strong>Warning:</strong> The following actions are irreversible!</p>
+                <div class="form-actions">
+                    <button id="clear-inventory-data" class="btn btn-danger">🗑️ Clear All Inventory Data</button>
+                    <button id="reset-everything" class="btn btn-danger">🔄 Reset Everything</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Modal -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
