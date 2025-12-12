@@ -17,13 +17,18 @@ if not firebase_admin._apps:
     # Try to load from environment variable first (for Render deployment)
     firebase_creds = os.environ.get('FIREBASE_CREDENTIALS')
     
-    if firebase_creds:
+    if firebase_creds and firebase_creds.strip():
         # Parse JSON credentials from environment variable
-        import json
-        cred_dict = json.loads(firebase_creds)
-        cred = credentials.Certificate(cred_dict)
-        firebase_admin.initialize_app(cred)
-        print("✅ Firebase initialized from environment variable")
+        try:
+            import json
+            cred_dict = json.loads(firebase_creds)
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred)
+            print("✅ Firebase initialized from environment variable")
+        except json.JSONDecodeError as e:
+            print(f"❌ Error parsing FIREBASE_CREDENTIALS: {e}")
+            print("   Make sure the environment variable contains valid JSON")
+            raise
     else:
         # Fallback to local file for development
         cred_path = r"C:\Users\AIT 33\Documents\Secrets\firebase-admin-sdk.json"
