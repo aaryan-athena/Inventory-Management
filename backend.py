@@ -2,14 +2,14 @@
 FIFO Inventory Tracker - Flask Backend with Firebase
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import firebase_admin
 from firebase_admin import credentials, firestore
 import os
 from datetime import datetime
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)  # Enable CORS for frontend communication
 
 # Initialize Firebase
@@ -55,6 +55,24 @@ if not firebase_admin._apps:
 db = firestore.client()
 INVENTORY_COLLECTION = "inventory_items"
 SETTINGS_COLLECTION = "settings"
+
+# ============== FRONTEND ROUTES ==============
+
+@app.route('/')
+def serve_frontend():
+    """Serve the main HTML file"""
+    return send_from_directory('.', 'index.html')
+
+@app.route('/<path:path>')
+def serve_static(path):
+    """Serve static files (CSS, JS, etc.)"""
+    try:
+        return send_from_directory('.', path)
+    except:
+        # If file not found and not an API route, serve index.html (for SPA routing)
+        if not path.startswith('api/'):
+            return send_from_directory('.', 'index.html')
+        return jsonify({"success": False, "error": "Endpoint not found"}), 404
 
 # ============== INVENTORY ENDPOINTS ==============
 

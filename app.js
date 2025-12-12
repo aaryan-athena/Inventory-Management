@@ -3,7 +3,7 @@
 // API Configuration - automatically detects local vs production
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000/api'
-    : '/api'; // Use relative path for production (assuming backend on same domain or proxied)
+    : '/api'; // Relative path for production (same server)
 
 // State Management
 let inventoryData = [];
