@@ -1,3 +1,2 @@
-ienv
 venv
-.vscode
+.DS_Store

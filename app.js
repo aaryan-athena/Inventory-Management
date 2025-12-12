@@ -1,5 +1,10 @@
 // FIFO Inventory Tracker - Main Application Logic
 
+// API Configuration - automatically detects local vs production
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000/api'
+    : '/api'; // Use relative path for production (assuming backend on same domain or proxied)
+
 // State Management
 let inventoryData = [];
 let settings = {
@@ -13,24 +18,72 @@ let settings = {
     currencySymbol: "$"
 };
 
-// Load data from localStorage on startup
-function loadData() {
-    const savedInventory = localStorage.getItem('inventoryData');
-    const savedSettings = localStorage.getItem('settings');
-    
-    if (savedInventory) {
-        inventoryData = JSON.parse(savedInventory);
-    }
-    
-    if (savedSettings) {
-        settings = JSON.parse(savedSettings);
+// API Helper Functions
+async function apiRequest(endpoint, options = {}) {
+    try {
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'API request failed');
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('API Error:', error);
+        showToast(error.message || 'Failed to connect to server', 'error');
+        throw error;
     }
 }
 
-// Save data to localStorage
-function saveData() {
-    localStorage.setItem('inventoryData', JSON.stringify(inventoryData));
-    localStorage.setItem('settings', JSON.stringify(settings));
+// Load data from Firebase
+async function loadData() {
+    try {
+        // Load inventory
+        const inventoryResponse = await apiRequest('/inventory');
+        if (inventoryResponse.success) {
+            inventoryData = inventoryResponse.data;
+        }
+        
+        // Load settings
+        const settingsResponse = await apiRequest('/settings');
+        if (settingsResponse.success) {
+            settings = settingsResponse.data;
+        }
+    } catch (error) {
+        console.error('Failed to load data:', error);
+        showToast('Failed to load data from server', 'error');
+    }
+}
+
+// Save inventory data to Firebase
+async function saveInventoryData() {
+    // Data is saved automatically when adding/updating items
+    // This function kept for compatibility
+}
+
+// Save settings to Firebase
+async function saveSettings() {
+    try {
+        const response = await apiRequest('/settings', {
+            method: 'POST',
+            body: JSON.stringify(settings)
+        });
+        
+        if (response.success) {
+            return true;
+        }
+    } catch (error) {
+        console.error('Failed to save settings:', error);
+        return false;
+    }
 }
 
 // Helper Functions
@@ -397,12 +450,22 @@ function updateCategoryFilter() {
     });
 }
 
-function deleteItem(index) {
+async function deleteItem(index) {
     if (confirm('Are you sure you want to delete this item?')) {
-        inventoryData.splice(index, 1);
-        saveData();
-        renderInventoryPage();
-        showToast('Item deleted successfully', 'success');
+        try {
+            const item = inventoryData[index];
+            const response = await apiRequest(`/inventory/${item.id}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.success) {
+                inventoryData.splice(index, 1);
+                renderInventoryPage();
+                showToast('Item deleted successfully', 'success');
+            }
+        } catch (error) {
+            showToast('Failed to delete item', 'error');
+        }
     }
 }
 
@@ -692,7 +755,7 @@ function initInventoryForm() {
     expiryDateInput.min = today;
     expiryDateInput.value = today;
     
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
         const productName = document.getElementById('product-name').value;
@@ -722,16 +785,25 @@ function initInventoryForm() {
             shelfLife,
             category,
             location,
-            notes,
-            dateAdded: new Date().toISOString().split('T')[0]
+            notes
         };
         
-        inventoryData.push(newItem);
-        saveData();
-        form.reset();
-        expiryDateInput.value = today;
-        renderInventoryPage();
-        showToast(`${productName} (ID: ${productId}) successfully added to inventory!`, 'success');
+        try {
+            const response = await apiRequest('/inventory', {
+                method: 'POST',
+                body: JSON.stringify(newItem)
+            });
+            
+            if (response.success) {
+                await loadData();
+                form.reset();
+                expiryDateInput.value = today;
+                renderInventoryPage();
+                showToast(`${productName} (ID: ${productId}) successfully added to inventory!`, 'success');
+            }
+        } catch (error) {
+            // Error already shown by apiRequest
+        }
     });
 }
 
@@ -748,7 +820,7 @@ function initSettings() {
     });
     
     // Save settings
-    document.getElementById('save-settings').addEventListener('click', () => {
+    document.getElementById('save-settings').addEventListener('click', async () => {
         settings.criticalDays = parseInt(document.getElementById('critical-days').value);
         settings.warningDays = parseInt(document.getElementById('warning-days').value);
         settings.moderateDays = parseInt(document.getElementById('moderate-days').value);
@@ -757,26 +829,28 @@ function initSettings() {
         settings.discountModerate = parseInt(document.getElementById('discount-moderate').value);
         settings.maxDiscount = parseInt(document.getElementById('max-discount').value);
         
-        saveData();
-        showToast('Settings saved successfully!', 'success');
+        const saved = await saveSettings();
+        if (saved) {
+            showToast('Settings saved successfully!', 'success');
+        }
     });
     
     // Reset settings
-    document.getElementById('reset-settings').addEventListener('click', () => {
+    document.getElementById('reset-settings').addEventListener('click', async () => {
         if (confirm('Are you sure you want to reset all settings to defaults?')) {
-            settings = {
-                maxDiscount: 50,
-                criticalDays: 3,
-                warningDays: 7,
-                moderateDays: 14,
-                discountCritical: 50,
-                discountWarning: 30,
-                discountModerate: 15,
-                currencySymbol: "$"
-            };
-            saveData();
-            renderSettingsPage();
-            showToast('Settings reset to defaults!', 'success');
+            try {
+                const response = await apiRequest('/settings/reset', {
+                    method: 'POST'
+                });
+                
+                if (response.success) {
+                    await loadData();
+                    renderSettingsPage();
+                    showToast('Settings reset to defaults!', 'success');
+                }
+            } catch (error) {
+                showToast('Failed to reset settings', 'error');
+            }
         }
     });
 }
@@ -880,12 +954,21 @@ function initExportFunctions() {
     });
     
     // Clear all inventory
-    document.getElementById('clear-all').addEventListener('click', () => {
+    document.getElementById('clear-all').addEventListener('click', async () => {
         if (confirm('Are you sure you want to clear all inventory? This action cannot be undone!')) {
-            inventoryData = [];
-            saveData();
-            renderInventoryPage();
-            showToast('All inventory cleared!', 'success');
+            try {
+                const response = await apiRequest('/inventory/clear', {
+                    method: 'DELETE'
+                });
+                
+                if (response.success) {
+                    await loadData();
+                    renderInventoryPage();
+                    showToast('All inventory cleared!', 'success');
+                }
+            } catch (error) {
+                showToast('Failed to clear inventory', 'error');
+            }
         }
     });
     
@@ -996,8 +1079,14 @@ function initSearchAndFilters() {
 }
 
 // Initialize Application
-function init() {
-    loadData();
+async function init() {
+    // Show loading state
+    showToast('Loading data from server...', 'info');
+    
+    // Load data from Firebase
+    await loadData();
+    
+    // Initialize UI
     initNavigation();
     initInventoryForm();
     initSettings();
@@ -1005,6 +1094,8 @@ function init() {
     initExportFunctions();
     initSearchAndFilters();
     renderHomePage();
+    
+    console.log('Application initialized with Firebase backend');
 }
 
 // Run on page load

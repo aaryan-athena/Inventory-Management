@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: fifo-inventory-backend
+    runtime: python
+    buildCommand: pip install -r requirements_backend.txt
+    startCommand: gunicorn backend:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.11
+      - key: FIREBASE_CREDENTIALS
+        sync: false
