@@ -18,16 +18,27 @@ if not firebase_admin._apps:
     firebase_creds = os.environ.get('FIREBASE_CREDENTIALS')
     
     if firebase_creds and firebase_creds.strip():
-        # Parse JSON credentials from environment variable
         try:
             import json
-            cred_dict = json.loads(firebase_creds)
-            cred = credentials.Certificate(cred_dict)
-            firebase_admin.initialize_app(cred)
-            print("✅ Firebase initialized from environment variable")
+            
+            # Check if it's a file path or JSON content
+            if firebase_creds.endswith('.json') and os.path.exists(firebase_creds):
+                # It's a file path
+                cred = credentials.Certificate(firebase_creds)
+                firebase_admin.initialize_app(cred)
+                print(f"✅ Firebase initialized from file: {firebase_creds}")
+            else:
+                # It's JSON content
+                cred_dict = json.loads(firebase_creds)
+                cred = credentials.Certificate(cred_dict)
+                firebase_admin.initialize_app(cred)
+                print("✅ Firebase initialized from environment variable JSON")
         except json.JSONDecodeError as e:
             print(f"❌ Error parsing FIREBASE_CREDENTIALS: {e}")
-            print("   Make sure the environment variable contains valid JSON")
+            print("   Make sure the environment variable contains valid JSON or a valid file path")
+            raise
+        except Exception as e:
+            print(f"❌ Error initializing Firebase: {e}")
             raise
     else:
         # Fallback to local file for development
